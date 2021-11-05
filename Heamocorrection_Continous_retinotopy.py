@@ -6,7 +6,7 @@ from scipy import signal, ndimage, stats
 from sklearn.linear_model import LinearRegression
 from skimage.morphology import white_tophat
 from PIL import Image
-from time import clock
+#from time import cloc
 import os
 import cv2
 from datetime import datetime
@@ -544,6 +544,8 @@ def perform_heamocorrection(home_directory):
 
     # Reshape Data
     reshape_processed_data(delta_f_pixelwise, delta_f)
+
+
 
 
 

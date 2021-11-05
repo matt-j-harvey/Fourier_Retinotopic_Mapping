@@ -14,7 +14,7 @@ import math
 from scipy import fftpack
 from math import log, pi
 from matplotlib import pyplot as plt
-from skimage import data, color, io, img_as_float, morphology, feature, measure
+from skimage import color, morphology, measure
 import skimage.segmentation as seg
 
 def get_intervals(trial_list):
@@ -147,7 +147,7 @@ def get_average_movie(base_directory, onsets, preprocessed_data):
 
 
 
-def generatePhaseMap2(movie, cycles, isReverse=False, isPlot=True):
+def generatePhaseMap2(movie, cycles, isReverse=False, isPlot=False):
 
     '''
     generating phase map of a 3-d movie, on the frequency defined by cycles.
@@ -230,6 +230,10 @@ def overlay_visual_sign_map(base_directory, max_projection, sign_map):
     max_sign = np.max(sign_map)
     scaled_sign_map = np.divide(sign_map, max_sign)
 
+
+    # Create Sign Map Array
+    sign_map_array = np.zeros(np.shape(max_projection))
+
     for y in range(rows):
         for x in range(cols):
             pixel_sign = sign_map[y, x]
@@ -239,8 +243,11 @@ def overlay_visual_sign_map(base_directory, max_projection, sign_map):
 
                 if pixel_sign > 0:
                     color_mask[y, x] = [abs_pixel_sign, 0, 0]  # Red block
+                    sign_map_array[y, x] = 1
                 else:
                     color_mask[y, x] = [0, 0, abs_pixel_sign]  # Blue block
+                    sign_map_array[y, x] = -1
+
 
     # Construct RGB version of grey-level image
     img_color = np.dstack((max_projection, max_projection, max_projection))
@@ -270,6 +277,10 @@ def overlay_visual_sign_map(base_directory, max_projection, sign_map):
     plt.imshow(img_masked)
     plt.savefig(save_directory + "Visual_Areas_Overlay.png")
     plt.close()
+
+    # Save Raw Overlay
+    np.save(save_directory + "/_Overlay_Array.npy", img_masked)
+    np.save(save_directory + "/_Sign_Map_Array.npy", sign_map_array)
 
 def plot_maps(base_directory, horizontal_power_map, horizontal_phase_map, vertical_power_map, vertical_phase_map, sign_map):
 
@@ -380,6 +391,7 @@ def perform_fourier_analysis(base_directory):
     np.save(save_directory + "/Vertical_Phase_Map", vertical_phase_map)
     np.save(save_directory + "/Vertical_Power_Map", vertical_power_map)
 
+
     horizontal_phase_map = np.load(save_directory + "/Horizontal_Phase_Map.npy")
     horizontal_power_map = np.load(save_directory + "/Horizontal_Power_Map.npy")
     vertical_phase_map = np.load(save_directory + "/Vertical_Phase_Map.npy")
@@ -417,6 +429,4 @@ def perform_fourier_analysis(base_directory):
     plt.imshow(np.load(base_directory + "/max_projection.npy"), cmap="Greys_r")
     plt.savefig(base_directory + "/Maps/Contours")
     plt.close()
-
-
 

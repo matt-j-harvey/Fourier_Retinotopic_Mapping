@@ -6,19 +6,20 @@ import Extract_Trial_Aligned_Activity_Continous_Retinotopy
 import Create_Sweep_Aligned_Movie
 import Continous_Retinotopy_Fourier_Analysis
 
-base_directory = r"/mnt/usb-Realtek_RTL9210B_NVME_012345678995-0:0-part2/NXAK16.1B_Continous_retinotopic_Mapping/2021_07_26_Continous_Retinotopy_Left"
+base_directory = r"/media/matthew/Seagate Expansion Drive2/Widefield_Imaging/Transition_Analysis/NXAK14.1A/NXAK14.1A_Cont_Retinotopy_Left/Continous_Retinotopic_Mapping/"
+#base_directory = r"/media/matthew/Seagate Expansion Drive2/Widefield_Imaging/Transition_Analysis/NXAK14.1A/NXAK14.1a_Cont_Retinotopy_Right/Continous_Retinotopic_Mapping_Right/"
 
 # Compress Files
-File_Compression.check_all_data([base_directory])
+#File_Compression.check_all_data([base_directory])
 
 # Perform Template Masking
-Template_Masking.perform_template_masking(base_directory)
+#Template_Masking.perform_template_masking(base_directory)
 
 # Get Stimuli Onsets
 Check_Photodiode_Trace.check_photodiode_times(base_directory)
 
 # Perform Heamocorrection
-Heamocorrection_Continous_retinotopy.perform_heamocorrection(base_directory)
+#Heamocorrection_Continous_retinotopy.perform_heamocorrection(base_directory)
 
 # Extract Trial Aligned Activity
 Extract_Trial_Aligned_Activity_Continous_Retinotopy.extract_trial_aligned_activity(base_directory)

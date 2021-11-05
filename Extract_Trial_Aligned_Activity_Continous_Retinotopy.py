@@ -217,25 +217,30 @@ def extract_trial_aligned_activity(home_directory):
     condition_2_onsets = list(filter(None, condition_2_onsets))
 
 
-    #Extract Average Activity
+    # Extract Average Activity
     condition_1_average, condition_1_all_trials = get_stimuli_average(preprocessed_data, condition_1_onsets, trial_details)
-    condition_2_average, condition_2_all_trials = get_stimuli_average(preprocessed_data, condition_2_onsets, trial_details)
 
-    # View For Sanity Checl
-    print("conditions:", condition_names)
+    # View For Sanity Check
     reconstruct_video(home_directory, condition_1_average)
-    reconstruct_video(home_directory, condition_2_average)
 
     # Save Average Activity Matricies
     save_evoked_responses(home_directory, condition_names[0], condition_1_average, type="Average")
-    save_evoked_responses(home_directory, condition_names[1], condition_2_average, type="Average")
 
     # Save All Trials Activity Matricies
     save_evoked_responses(home_directory, condition_names[0], condition_1_all_trials, type="All_Trials")
-    save_evoked_responses(home_directory, condition_names[1], condition_2_all_trials, type="All_Trials")
 
     # Save Trial Details
     save_trial_details(home_directory, condition_names[0], condition_1_onsets, trial_details)
+
+    # Free Memory
+    condition_1_all_trials = None
+    condition_1_average = None
+
+    # Repeat for condition 2
+    condition_2_average, condition_2_all_trials = get_stimuli_average(preprocessed_data, condition_2_onsets, trial_details)
+    reconstruct_video(home_directory, condition_2_average)
+    save_evoked_responses(home_directory, condition_names[1], condition_2_average, type="Average")
+    save_evoked_responses(home_directory, condition_names[1], condition_2_all_trials, type="All_Trials")
     save_trial_details(home_directory, condition_names[1], condition_2_onsets, trial_details)
 
 

@@ -371,6 +371,13 @@ def check_photodiode_times(base_directory):
     print("Trials Per Direction", trials_per_direction)
     print("Display Period", display_period)
 
+    # For that one session without the Mat File
+    """
+    sweeps_per_trial = 10
+    number_of_trials = 20
+    trial_order = [0,0,0,1,0,1,1,0,0,0,1,1,1,1,1,0,1,0,0,1]
+    """
+
     # Get Stimuli Dictionary
     stimuli_dictionary = create_stimuli_dictionary()
 
