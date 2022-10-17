@@ -9,45 +9,27 @@ from sklearn.neighbors import KernelDensity
 import cv2
 from matplotlib import gridspec
 
-def reconstruct_video(home_directory, data):
+import Retinotopy_Utils
+
+def reconstruct_video(base_directory, data):
 
     # Load Mask
-    mask = np.load(home_directory + "/mask.npy")
-    mask = np.where(mask>0.1, 1, 0)
-    mask = mask.astype(int)
-    flat_mask = np.ndarray.flatten(mask)
-    indicies = np.argwhere(flat_mask)
-    indicies = np.ndarray.astype(indicies, int)
-    indicies = np.ndarray.flatten(indicies)
+    indicies, image_height, image_width = Retinotopy_Utils.load_downsampled_mask(base_directory)
 
     print("Data Shape", np.shape(data))
     number_of_frames = np.shape(data)[0]
 
-
-    vmin = np.percentile(data, 5)
-    vmax = np.percentile(data, 99)
-
-    print("Data min", np.min(data))
-    print("Data Max", np.max(data))
-
+    # Set Colourmap
+    vmin = -0.05
+    vmax = 0.05
+    colourmap = Retinotopy_Utils.get_musall_cmap()
 
     plt.ion()
     for frame in range(number_of_frames):
-        template = np.zeros((600, 608))
         frame_data = data[frame]
-        np.put(template, indicies, frame_data)
-        template = np.nan_to_num(template)
-        template = ndimage.gaussian_filter(template, 2)
-
-        #Rotate Template
-        angle = 2
-        template = ndimage.rotate(input=template, angle=angle, reshape=False)
-
-        #vmin=1, vmax=1.75
+        frame_data = Retinotopy_Utils.create_image_from_data(frame_data, indicies, image_height, image_width)
         plt.title(frame)
-        #plt.imshow(template, cmap='jet', vmin=vmin, vmax=vmax)
         plt.imshow(template, cmap='jet', vmin=0, vmax=1)
-
         plt.draw()
         plt.pause(0.001)
         plt.clf()
@@ -68,7 +50,6 @@ def get_stimuli_average(preprocessed_data, stimuli_onsets, trial_details):
     #Get Data From All Trials
     all_trials = []
     for onset in stimuli_onsets:
-        print(onset)
         if onset != None:
             trial_data = get_single_trial_trace(onset, preprocessed_data, trial_details)
             all_trials.append(trial_data)
@@ -187,23 +168,20 @@ def extract_trial_aligned_activity(home_directory):
     use_baseline = False
     trial_details = [trial_start, trial_end, window_size, use_baseline]
 
-
     #Setup File Structure
-    preprocessed_data_file_location = home_directory + "/Delta_F.h5"
+    preprocessed_data_file_location = os.path.join(home_directory, "Downsampled_Delta_F.h5")
     responses_save_location         = home_directory
 
     if not os.path.exists(responses_save_location):
         os.mkdir(responses_save_location)
 
-
     #Load Processed Data
     preprocessed_data_file = tables.open_file(preprocessed_data_file_location, mode='r')
     preprocessed_data = preprocessed_data_file.root['Data']
 
-
     #Load Trial Onsets
-    condition_1_onset_file = home_directory + "/Stimuli_Onsets/" + trial_onset_filenames[0]
-    condition_2_onset_file = home_directory + "/Stimuli_Onsets/" + trial_onset_filenames[1]
+    condition_1_onset_file = os.path.join(home_directory, "Stimuli_Onsets", trial_onset_filenames[0])
+    condition_2_onset_file = os.path.join(home_directory, "Stimuli_Onsets", trial_onset_filenames[1])
 
     condition_1_onsets = np.load(condition_1_onset_file, allow_pickle=True)
     condition_2_onsets = np.load(condition_2_onset_file, allow_pickle=True)
@@ -216,12 +194,8 @@ def extract_trial_aligned_activity(home_directory):
     condition_1_onsets = list(filter(None, condition_1_onsets))
     condition_2_onsets = list(filter(None, condition_2_onsets))
 
-
     # Extract Average Activity
     condition_1_average, condition_1_all_trials = get_stimuli_average(preprocessed_data, condition_1_onsets, trial_details)
-
-    # View For Sanity Check
-    reconstruct_video(home_directory, condition_1_average)
 
     # Save Average Activity Matricies
     save_evoked_responses(home_directory, condition_names[0], condition_1_average, type="Average")
@@ -238,7 +212,6 @@ def extract_trial_aligned_activity(home_directory):
 
     # Repeat for condition 2
     condition_2_average, condition_2_all_trials = get_stimuli_average(preprocessed_data, condition_2_onsets, trial_details)
-    reconstruct_video(home_directory, condition_2_average)
     save_evoked_responses(home_directory, condition_names[1], condition_2_average, type="Average")
     save_evoked_responses(home_directory, condition_names[1], condition_2_all_trials, type="All_Trials")
     save_trial_details(home_directory, condition_names[1], condition_2_onsets, trial_details)

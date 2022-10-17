@@ -17,6 +17,8 @@ from matplotlib import pyplot as plt
 from skimage import color, morphology, measure
 import skimage.segmentation as seg
 
+import Retinotopy_Utils
+
 def get_intervals(trial_list):
 
     number_of_trials = np.shape(trial_list)[0]
@@ -34,35 +36,12 @@ def get_intervals(trial_list):
     return intervals
 
 
-def load_mask(home_directory):
 
-    mask = np.load(home_directory + "/mask.npy")
-    mask = np.where(mask>0.1, 1, 0)
-    mask = mask.astype(int)
-    image_height = np.shape(mask)[0]
-    image_width = np.shape(mask)[1]
-    flat_mask = np.ndarray.flatten(mask)
-    indicies = np.argwhere(flat_mask)
-    indicies = np.ndarray.astype(indicies, int)
-    indicies = np.ndarray.flatten(indicies)
-
-
-    return indicies, image_height, image_width
-
-
-def create_image_from_data(data, image_height, image_width, indicies):
-    template = np.zeros([image_height, image_width])
-    data = np.nan_to_num(data)
-    np.put(template, indicies, data)
-    image = np.ndarray.reshape(template, (image_height, image_width))
-    #image = ndimage.gaussian_filter(image, 2)
-
-    return image
 
 
 def create_map(base_directory, values, filter_width=2):
-    indicies, image_height, image_width = load_mask(base_directory)
-    image = create_image_from_data(values, image_height, image_width, indicies)
+    indicies, image_height, image_width = Re(base_directory)
+    image = Retinotopy_Utils.create_image_from_data(values, indicies, image_height, image_width)
     image = np.nan_to_num(image)
     image = np.clip(image, a_min=np.percentile(image, 0.1), a_max=np.percentile(image, 99.9))
     image = ndimage.gaussian_filter(image, filter_width)
@@ -134,13 +113,13 @@ def get_average_movie(base_directory, onsets, preprocessed_data):
 
     # Turn Flattend Movie 3D
     number_of_frames = np.shape(mean_movie)[0]
-    indicies, image_height, image_width = load_mask(base_directory)
+    indicies, image_height, image_width = Retinotopy_Utils.load_downsampled_mask(base_directory)
 
     mean_movie_3d = np.zeros((number_of_frames, image_height, image_width))
 
     for frame in range(number_of_frames):
         frame_2d = mean_movie[frame]
-        frame_3d = create_image_from_data(frame_2d, image_height, image_width, indicies)
+        frame_3d = Retinotopy_Utils.create_image_from_data(frame_2d, indicies, image_height, image_width)
         mean_movie_3d[frame] = frame_3d
 
     return mean_movie_3d
@@ -217,6 +196,9 @@ def visualSignMap(phasemap1, phasemap2):
 
 def overlay_visual_sign_map(base_directory, max_projection, sign_map):
 
+    max_projection = np.divide(max_projection, np.percentile(max_projection, 99))
+
+
     save_directory = base_directory + "/Maps/"
     alpha = 0.6
 
@@ -229,6 +211,14 @@ def overlay_visual_sign_map(base_directory, max_projection, sign_map):
     threshold = np.percentile(absolute_sign_map, 90)
     max_sign = np.max(sign_map)
     scaled_sign_map = np.divide(sign_map, max_sign)
+
+    plt.title("Overlax max projection")
+    plt.imshow(max_projection)
+    plt.show()
+
+    plt.title("Scaled Sign Map")
+    plt.imshow(scaled_sign_map)
+    plt.show()
 
 
     # Create Sign Map Array
@@ -256,6 +246,10 @@ def overlay_visual_sign_map(base_directory, max_projection, sign_map):
     # colorspace
     img_hsv = color.rgb2hsv(img_color)
     color_mask_hsv = color.rgb2hsv(color_mask)
+
+    plt.title("Colour mask hsv")
+    plt.imshow(color_mask_hsv)
+    plt.show()
 
     # Replace the hue and saturation of the original image
     # with that of the color mask
@@ -342,11 +336,15 @@ def plot_maps(base_directory, horizontal_power_map, horizontal_phase_map, vertic
     sign_map_axis.axis('off')
 
     horizontal_power_axis.imshow(horizontal_power_map, cmap='plasma', vmin=0, vmax=np.percentile(horizontal_power_map, 99))
-    horizontal_phase_axis.imshow(horizontal_phase_map, cmap='hsv')
+    horizontal_phase_axis.imshow(horizontal_phase_map, cmap='jet')
     vertical_power_axis.imshow(vertical_power_map, cmap='plasma', vmin=0, vmax=np.percentile(vertical_power_map, 99))
-    vertical_phase_axis.imshow(vertical_phase_map, cmap='hsv')
+    vertical_phase_axis.imshow(vertical_phase_map, cmap='jet')
     max_projection_axis.imshow(max_projection, cmap='gray')
-    sign_map_axis.imshow(sign_map, cmap='jet', vmin=-1*np.max(np.abs(sign_map)), vmax=np.max(np.abs(sign_map)))
+    print("Sign min", np.min(sign_map))
+    print("Sign max", np.max(sign_map))
+    sign_magnitude = np.max(np.abs(sign_map))
+    sign_map_axis.imshow(sign_map, cmap='jet', vmin=-sign_magnitude, vmax=sign_magnitude)
+
 
     plt.savefig(save_directory + "/Fourrier_Mapping.png")
     plt.close()
@@ -355,47 +353,47 @@ def plot_maps(base_directory, horizontal_power_map, horizontal_phase_map, vertic
 
 def perform_fourier_analysis(base_directory):
 
+
     # Load Data
-    preprocessed_data_file_location = base_directory + "/Delta_F.h5"
+    preprocessed_data_file_location = os.path.join(base_directory, "Downsampled_Delta_F.h5")
 
     # Load Onsets
-    horizontal_onsets = np.load(base_directory + "/Stimuli_Onsets/" + "Horizontal_Frame_Onsets.npy")
-    vertical_onsets = np.load(base_directory + "/Stimuli_Onsets/" + "Vertical_Frame_Onsets.npy")
+    horizontal_onsets = np.load(os.path.join(base_directory, "Stimuli_Onsets", "Horizontal_Frame_Onsets.npy"))
+    vertical_onsets = np.load(os.path.join(base_directory, "Stimuli_Onsets", "Vertical_Frame_Onsets.npy"))
 
     # Load Full Data
     preprocessed_data_file = tables.open_file(preprocessed_data_file_location, mode='r')
     preprocessed_data = preprocessed_data_file.root['Data']
 
     # Get Save Directory
-    save_directory = base_directory + "/Stimuli_Evoked_Responses/"
+    save_directory = os.path.join(base_directory, "Stimuli_Evoked_Responses")
     if not os.path.exists(save_directory):
         os.mkdir(save_directory)
-
 
     # Get Average Movies
     horizontal_average_movie = get_average_movie(base_directory, horizontal_onsets, preprocessed_data)
     vertical_average_movie = get_average_movie(base_directory, vertical_onsets, preprocessed_data)
-    np.save(save_directory + "/horizontal_average_movie.npy", horizontal_average_movie)
-    np.save(save_directory + "/vertical_average_movie.npy", vertical_average_movie)
-
-    horizontal_average_movie = np.load(save_directory + "/horizontal_average_movie.npy")
-    vertical_average_movie   = np.load(save_directory + "/vertical_average_movie.npy")
+    np.save(os.path.join(save_directory, "horizontal_average_movie.npy"), horizontal_average_movie)
+    np.save(os.path.join(save_directory, "vertical_average_movie.npy"), vertical_average_movie)
+  
+    horizontal_average_movie = np.load(os.path.join(save_directory, "horizontal_average_movie.npy"))
+    vertical_average_movie = np.load(os.path.join(save_directory, "vertical_average_movie.npy"))
 
     # Perform Fourier Mapping
     number_of_cycles = np.shape(horizontal_onsets)[1]
     horizontal_phase_map, horizontal_power_map = generatePhaseMap2(horizontal_average_movie, number_of_cycles)
     vertical_phase_map, vertical_power_map = generatePhaseMap2(vertical_average_movie, number_of_cycles)
 
-    np.save(save_directory + "/Horizontal_Phase_Map", horizontal_phase_map)
-    np.save(save_directory + "/Horizontal_Power_Map", horizontal_power_map)
-    np.save(save_directory + "/Vertical_Phase_Map", vertical_phase_map)
-    np.save(save_directory + "/Vertical_Power_Map", vertical_power_map)
+    np.save(os.path.join(save_directory, "Horizontal_Phase_Map"), horizontal_phase_map)
+    np.save(os.path.join(save_directory, "Horizontal_Power_Map"), horizontal_power_map)
+    np.save(os.path.join(save_directory, "Vertical_Phase_Map"), vertical_phase_map)
+    np.save(os.path.join(save_directory, "Vertical_Power_Map"), vertical_power_map)
 
-
-    horizontal_phase_map = np.load(save_directory + "/Horizontal_Phase_Map.npy")
-    horizontal_power_map = np.load(save_directory + "/Horizontal_Power_Map.npy")
-    vertical_phase_map = np.load(save_directory + "/Vertical_Phase_Map.npy")
-    vertical_power_map = np.load(save_directory + "/Vertical_Power_Map.npy")
+    # Plot Sign Maps
+    horizontal_phase_map = np.load(os.path.join(save_directory, "Horizontal_Phase_Map.npy"))
+    horizontal_power_map = np.load(os.path.join(save_directory, "Horizontal_Power_Map.npy"))
+    vertical_phase_map = np.load(os.path.join(save_directory, "Vertical_Phase_Map.npy"))
+    vertical_power_map = np.load(os.path.join(save_directory, "Vertical_Power_Map.npy"))
 
     # Create Visual Sign Map
     sign_map = visualSignMap(horizontal_phase_map, vertical_phase_map)
@@ -412,7 +410,8 @@ def perform_fourier_analysis(base_directory):
     plot_maps(base_directory, horizontal_power_map, horizontal_phase_map, vertical_power_map, vertical_phase_map, thresholded_sign_map)
 
     # Overlay Maps
-    overlay_visual_sign_map(base_directory, np.load(base_directory + "/max_projection.npy"), thresholded_sign_map)
+    example_image = np.load(os.path.join(base_directory, "Blue_Example_Image.npy"))
+    overlay_visual_sign_map(base_directory, example_image, thresholded_sign_map)
 
     #binarise_image
     thresholded_sign_map = ndimage.gaussian_filter(thresholded_sign_map, sigma=2)
@@ -426,7 +425,7 @@ def perform_fourier_analysis(base_directory):
     for contour in contours:
         plt.plot(contour[:, 1], contour[:, 0], linewidth=2)
     plt.title("Contours")
-    plt.imshow(np.load(base_directory + "/max_projection.npy"), cmap="Greys_r")
+    plt.imshow(np.load(os.path.join(base_directory, "Blue_Example_Image.npy")), cmap="Greys_r")
     plt.savefig(base_directory + "/Maps/Contours")
     plt.close()
 
